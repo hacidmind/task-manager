@@ -19,9 +19,12 @@ const PRIORITY_CONFIG = {
 
 const DAILY_CATEGORIES = ["UAT Issue", "Onboarding", "Card Program", "Engineering", "Other"];
 const FY27_CATEGORIES = ["Security", "Engineering", "Reporting", "Product Expansion", "Go-to-Market", "Strategy", "Other"];
+const QUARTERLY_CATEGORIES = ["Onboarding", "Engineering", "Card Program", "Security", "Reporting", "Strategy", "Go-to-Market", "Other"];
 const FY27_QUARTERS = ["Q1 FY27", "Q2 FY27", "Q3 FY27", "Q4 FY27"];
+const QUARTERLY_QUARTERS = ["Q1 FY27", "Q2 FY27", "Q3 FY27", "Q4 FY27"];
 const DAILY_STATUSES = ["Ongoing", "Waiting", "Done", "Blocked"];
 const FY27_STATUSES = ["Planned", "Not Started", "Ongoing", "Done", "Blocked"];
+const QUARTERLY_STATUSES = ["Planned", "Not Started", "Ongoing", "Done", "Blocked"];
 const PRIORITIES = ["High", "Medium", "Low"];
 const CATEGORY_ICONS = { Security: "🔐", Engineering: "⚙️", Reporting: "📊", Strategy: "🎯", "Product Expansion": "🚀", "Go-to-Market": "🌐", "UAT Issue": "🐛", Onboarding: "🏦", "Card Program": "💳", Other: "📌" };
 
@@ -82,12 +85,21 @@ function AddTaskButton({ onClick, accent, label = "Add Task" }) {
 
 // ─── ADD TASK MODAL ───────────────────────────────────────────────────────────
 
-function AddTaskModal({ isStrategic, onClose, onAdd }) {
-    const accent = isStrategic ? "#0F766E" : "#7C3AED";
+function AddTaskModal({ mode, onClose, onAdd }) {
+    const accent = mode === "fy27" ? "#0F766E" : mode === "quarterly" ? "#2563EB" : "#7C3AED";
+    const label = mode === "fy27" ? "FY27 Roadmap" : mode === "quarterly" ? "Quarterly" : "Daily Tasks";
+    const addLabel = mode === "fy27" ? "Add Initiative" : mode === "quarterly" ? "Add Quarterly Task" : "Add Task";
+    const placeholder = mode === "fy27" ? "e.g. Virtual Card Dispute Management" : mode === "quarterly" ? "e.g. Q1 Bank Migration" : "e.g. GTBank – Virtual Card Onboarding";
+    const categories = mode === "fy27" ? FY27_CATEGORIES : mode === "quarterly" ? QUARTERLY_CATEGORIES : DAILY_CATEGORIES;
+    const statuses = mode === "fy27" ? FY27_STATUSES : mode === "quarterly" ? QUARTERLY_STATUSES : DAILY_STATUSES;
+    const isStrategic = mode !== "daily";
+    const taskType = mode === "quarterly" ? "quarterly" : null;
+
     const [form, setForm] = useState({
-        id: genId(), title: "", category: isStrategic ? "Security" : "Onboarding",
-        status: isStrategic ? "Planned" : "Ongoing", owner: "", priority: "High",
+        id: genId(), title: "", category: categories[0],
+        status: statuses[0], owner: "", priority: "High",
         notes: "", subtasks: [], ...(isStrategic ? { quarter: "Q1 FY27" } : {}),
+        ...(taskType ? { taskType } : {}),
     });
     const [newAction, setNewAction] = useState("");
 
@@ -105,20 +117,20 @@ function AddTaskModal({ isStrategic, onClose, onAdd }) {
             <div style={{ background: "#fff", borderRadius: 18, width: "100%", maxWidth: 540, maxHeight: "92vh", overflowY: "auto", padding: 28, boxShadow: "0 24px 80px rgba(0,0,0,0.25)" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22 }}>
                     <div>
-                        <p style={{ fontSize: 10, fontWeight: 800, color: accent, textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 4 }}>{isStrategic ? "FY27 Roadmap" : "Daily Tasks"}</p>
-                        <h2 style={{ fontSize: 17, fontWeight: 800, color: "#0F172A" }}>{isStrategic ? "Add Initiative" : "Add Task"}</h2>
+                        <p style={{ fontSize: 10, fontWeight: 800, color: accent, textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 4 }}>{label}</p>
+                        <h2 style={{ fontSize: 17, fontWeight: 800, color: "#0F172A" }}>{addLabel}</h2>
                     </div>
                     <button onClick={onClose} style={{ background: "#F1F5F9", border: "none", borderRadius: 8, width: 32, height: 32, cursor: "pointer", color: "#64748B", fontSize: 16 }}>✕</button>
                 </div>
 
                 <Field label="Title *">
-                    <input value={form.title} onChange={e => set("title", e.target.value)} placeholder={isStrategic ? "e.g. Virtual Card Dispute Management" : "e.g. GTBank – Virtual Card Onboarding"} style={iStyle} autoFocus />
+                    <input value={form.title} onChange={e => set("title", e.target.value)} placeholder={placeholder} style={iStyle} autoFocus />
                 </Field>
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                     <Field label="Category">
                         <select value={form.category} onChange={e => set("category", e.target.value)} style={iStyle}>
-                            {(isStrategic ? FY27_CATEGORIES : DAILY_CATEGORIES).map(c => <option key={c}>{c}</option>)}
+                            {categories.map(c => <option key={c}>{c}</option>)}
                         </select>
                     </Field>
                     <Field label="Priority">
@@ -131,7 +143,7 @@ function AddTaskModal({ isStrategic, onClose, onAdd }) {
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                     <Field label="Status">
                         <select value={form.status} onChange={e => set("status", e.target.value)} style={iStyle}>
-                            {(isStrategic ? FY27_STATUSES : DAILY_STATUSES).map(s => <option key={s}>{s}</option>)}
+                            {statuses.map(s => <option key={s}>{s}</option>)}
                         </select>
                     </Field>
                     <Field label="Owner">
@@ -142,7 +154,7 @@ function AddTaskModal({ isStrategic, onClose, onAdd }) {
                 {isStrategic && (
                     <Field label="Quarter">
                         <select value={form.quarter} onChange={e => set("quarter", e.target.value)} style={iStyle}>
-                            {FY27_QUARTERS.map(q => <option key={q}>{q}</option>)}
+                            {(mode === "quarterly" ? QUARTERLY_QUARTERS : FY27_QUARTERS).map(q => <option key={q}>{q}</option>)}
                         </select>
                     </Field>
                 )}
@@ -168,7 +180,7 @@ function AddTaskModal({ isStrategic, onClose, onAdd }) {
                     <button onClick={onClose} style={{ padding: "9px 22px", borderRadius: 10, border: "1.5px solid #E2E8F0", background: "#fff", fontSize: 13, fontWeight: 700, color: "#64748B", cursor: "pointer" }}>Cancel</button>
                     <button onClick={() => { if (canSave) { onAdd(form); onClose(); } }}
                         style={{ padding: "9px 22px", borderRadius: 10, border: "none", background: canSave ? accent : "#CBD5E1", color: "#fff", fontSize: 13, fontWeight: 700, cursor: canSave ? "pointer" : "not-allowed" }}>
-                        {isStrategic ? "Add Initiative" : "Add Task"}
+                        {addLabel}
                     </button>
                 </div>
             </div>
@@ -178,8 +190,11 @@ function AddTaskModal({ isStrategic, onClose, onAdd }) {
 
 // ─── EDIT MODAL ───────────────────────────────────────────────────────────────
 
-function EditModal({ task, isStrategic, onClose, onSave, onDelete }) {
-    const accent = isStrategic ? "#0F766E" : "#7C3AED";
+function EditModal({ task, mode, onClose, onSave, onDelete }) {
+    const accent = mode === "fy27" ? "#0F766E" : mode === "quarterly" ? "#2563EB" : "#7C3AED";
+    const isStrategic = mode !== "daily";
+    const statuses = mode === "fy27" ? FY27_STATUSES : mode === "quarterly" ? QUARTERLY_STATUSES : DAILY_STATUSES;
+    const quarters = mode === "quarterly" ? QUARTERLY_QUARTERS : FY27_QUARTERS;
     const [edited, setEdited] = useState({ ...task, subtasks: (task.subtasks || []).map(s => ({ ...s })) });
     const [newAction, setNewAction] = useState("");
 
@@ -198,7 +213,7 @@ function EditModal({ task, isStrategic, onClose, onSave, onDelete }) {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
                     <div style={{ flex: 1, paddingRight: 16 }}>
                         <div style={{ display: "flex", gap: 7, marginBottom: 6, flexWrap: "wrap" }}>
-                            <span style={{ fontSize: 10, fontWeight: 800, color: accent, textTransform: "uppercase", letterSpacing: 1, background: isStrategic ? "#CCFBF1" : "#EDE9FE", padding: "2px 8px", borderRadius: 20 }}>{edited.category}</span>
+                            <span style={{ fontSize: 10, fontWeight: 800, color: accent, textTransform: "uppercase", letterSpacing: 1, background: mode === "quarterly" ? "#DBEAFE" : isStrategic ? "#CCFBF1" : "#EDE9FE", padding: "2px 8px", borderRadius: 20 }}>{edited.category}</span>
                             {isStrategic && edited.quarter && <span style={{ fontSize: 10, fontWeight: 700, color: "#64748B", background: "#F1F5F9", padding: "2px 8px", borderRadius: 20 }}>{edited.quarter}</span>}
                         </div>
                         <h2 style={{ fontSize: 15, fontWeight: 800, color: "#0F172A", lineHeight: 1.4 }}>{edited.title}</h2>
@@ -214,12 +229,20 @@ function EditModal({ task, isStrategic, onClose, onSave, onDelete }) {
 
                 <Field label="Status">
                     <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
-                        {(isStrategic ? FY27_STATUSES : DAILY_STATUSES).map(s => {
+                        {statuses.map(s => {
                             const cfg = STATUS_CONFIG[s] || {}; const active = edited.status === s;
                             return <button key={s} onClick={() => set("status", s)} style={{ padding: "5px 14px", borderRadius: 20, border: `2px solid ${active ? cfg.dot : "#E2E8F0"}`, background: active ? cfg.bg : "#fff", color: active ? cfg.color : "#64748B", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>{s}</button>;
                         })}
                     </div>
                 </Field>
+
+                {isStrategic && (
+                    <Field label="Quarter">
+                        <select value={edited.quarter || ""} onChange={e => set("quarter", e.target.value)} style={iStyle}>
+                            {quarters.map(q => <option key={q}>{q}</option>)}
+                        </select>
+                    </Field>
+                )}
 
                 <Field label="Notes">
                     <textarea value={edited.notes} onChange={e => set("notes", e.target.value)} rows={3} style={{ ...iStyle, resize: "vertical", lineHeight: 1.6 }} />
@@ -301,6 +324,29 @@ function FY27Card({ task, onClick }) {
     );
 }
 
+function QuarterlyCard({ task, onClick }) {
+    const icon = CATEGORY_ICONS[task.category] || "📌";
+    const done = task.subtasks.filter(s => s.done).length; const total = task.subtasks.length;
+    return (
+        <div onClick={onClick} style={{ background: "#fff", border: "1.5px solid #E2E8F0", borderRadius: 14, padding: "14px 16px", cursor: "pointer", borderLeft: `4px solid ${STATUS_CONFIG[task.status]?.dot || "#CBD5E1"}`, transition: "box-shadow 0.2s, transform 0.2s" }}
+            onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 4px 18px rgba(37,99,235,0.12)"; e.currentTarget.style.transform = "translateY(-1px)"; }}
+            onMouseLeave={e => { e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.transform = "none"; }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 10, marginBottom: 6 }}>
+                <div style={{ flex: 1 }}>
+                    <p style={{ fontSize: 10, fontWeight: 800, color: "#2563EB", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 3 }}>{task.category}</p>
+                    <p style={{ fontSize: 12, fontWeight: 700, color: "#0F172A", lineHeight: 1.3 }}>{task.title}</p>
+                </div>
+                <StatusBadge status={task.status} />
+            </div>
+            <p style={{ fontSize: 11, color: "#64748B", lineHeight: 1.5, marginBottom: 10, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{task.notes || "—"}</p>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ display: "flex", gap: 8 }}><PriorityBadge priority={task.priority} /><span style={{ fontSize: 10, color: "#94A3B8" }}>👤 {task.owner}</span></div>
+                {total > 0 && <span style={{ fontSize: 10, fontWeight: 700, color: done === total ? "#10B981" : "#2563EB" }}>{done}/{total}</span>}
+            </div>
+        </div>
+    );
+}
+
 // ─── STATS ROW ────────────────────────────────────────────────────────────────
 
 function StatsRow({ tasks, accent, isStrategic }) {
@@ -352,8 +398,8 @@ function DailyTab({ tasks, setTasks, addTask, updateTask, deleteTask }) {
                 {filtered.map(t => <DailyCard key={t.id} task={t} onClick={() => setSelected(t)} />)}
                 {filtered.length === 0 && <div style={{ gridColumn: "1/-1", textAlign: "center", padding: 60, color: "#94A3B8" }}><p style={{ fontSize: 36 }}>🔍</p><p style={{ fontWeight: 700 }}>No tasks match</p></div>}
             </div>
-            {adding && <AddTaskModal isStrategic={false} onClose={() => setAdding(false)} onAdd={t => { addTask(t); setTasks(p => [...p, t]); }} />}
-            {selected && <EditModal task={selected} isStrategic={false} onClose={() => setSelected(null)} onSave={u => { updateTask(u); setTasks(p => p.map(t => t.id === u.id ? u : t)); }} onDelete={id => { deleteTask(id); setTasks(p => p.filter(t => t.id !== id)); setSelected(null); }} />}
+            {adding && <AddTaskModal mode="daily" onClose={() => setAdding(false)} onAdd={t => { addTask({ ...t, isStrategic: false }); setTasks(p => [...p, t]); }} />}
+            {selected && <EditModal task={selected} mode="daily" onClose={() => setSelected(null)} onSave={u => { updateTask(u); setTasks(p => p.map(t => t.id === u.id ? u : t)); }} onDelete={id => { deleteTask(id); setTasks(p => p.filter(t => t.id !== id)); setSelected(null); }} />}
         </div>
     );
 }
@@ -395,21 +441,76 @@ function FY27Tab({ tasks, setTasks, addTask, updateTask, deleteTask }) {
                 {filtered.map(t => <FY27Card key={t.id} task={t} onClick={() => setSelected(t)} />)}
                 {filtered.length === 0 && <div style={{ gridColumn: "1/-1", textAlign: "center", padding: 60, color: "#94A3B8" }}><p style={{ fontSize: 36 }}>🔍</p><p style={{ fontWeight: 700 }}>No initiatives match</p></div>}
             </div>
-            {adding && <AddTaskModal isStrategic={true} onClose={() => setAdding(false)} onAdd={t => { addTask(t); setTasks(p => [...p, t]); }} />}
-            {selected && <EditModal task={selected} isStrategic={true} onClose={() => setSelected(null)} onSave={u => { updateTask(u); setTasks(p => p.map(t => t.id === u.id ? u : t)); }} onDelete={id => { deleteTask(id); setTasks(p => p.filter(t => t.id !== id)); setSelected(null); }} />}
+            {adding && <AddTaskModal mode="fy27" onClose={() => setAdding(false)} onAdd={t => { addTask({ ...t, isStrategic: true }); setTasks(p => [...p, t]); }} />}
+            {selected && <EditModal task={selected} mode="fy27" onClose={() => setSelected(null)} onSave={u => { updateTask(u); setTasks(p => p.map(t => t.id === u.id ? u : t)); }} onDelete={id => { deleteTask(id); setTasks(p => p.filter(t => t.id !== id)); setSelected(null); }} />}
         </div>
     );
 }
 
-// ─── QUARTERLY ────────────────────────────────────────────────────────────────
+// ─── QUARTERLY TAB ────────────────────────────────────────────────────────────
 
-function QuarterlyTab() {
+const Q_COLORS = {
+    "Q1 FY27": { header: "#2563EB", bg: "#EFF6FF", border: "#BFDBFE" },
+    "Q2 FY27": { header: "#0891B2", bg: "#ECFEFF", border: "#A5F3FC" },
+    "Q3 FY27": { header: "#7C3AED", bg: "#F5F3FF", border: "#DDD6FE" },
+    "Q4 FY27": { header: "#EA580C", bg: "#FFF7ED", border: "#FED7AA" },
+};
+
+function QuarterlyTab({ tasks, setTasks, addTask, updateTask, deleteTask }) {
+    const [selected, setSelected] = useState(null);
+    const [adding, setAdding] = useState(false);
+    const [filterStatus, setFilterStatus] = useState("All");
+
+    const filtered = tasks.filter(t => filterStatus === "All" || t.status === filterStatus);
+    const q1 = filtered.filter(t => t.quarter === "Q1 FY27");
+    const q2 = filtered.filter(t => t.quarter === "Q2 FY27");
+    const q3 = filtered.filter(t => t.quarter === "Q3 FY27");
+    const q4 = filtered.filter(t => t.quarter === "Q4 FY27");
+
+    function QuarterColumn({ label, qtasks, qcolor }) {
+        return (
+            <div style={{ background: qcolor.bg, borderRadius: 16, border: `1.5px solid ${qcolor.border}`, overflow: "hidden" }}>
+                <div style={{ background: qcolor.header, padding: "12px 18px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ color: "#fff", fontWeight: 900, fontSize: 14 }}>{label}</span>
+                    <span style={{ background: "rgba(255,255,255,0.25)", color: "#fff", borderRadius: 20, padding: "2px 12px", fontSize: 12, fontWeight: 700 }}>{qtasks.length} tasks</span>
+                </div>
+                <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 10, minHeight: 200 }}>
+                    {qtasks.map(t => <QuarterlyCard key={t.id} task={t} onClick={() => setSelected(t)} />)}
+                    {qtasks.length === 0 && (
+                        <div style={{ textAlign: "center", padding: 30, color: "#94A3B8", fontSize: 12, fontWeight: 600 }}>
+                            No tasks yet
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
     return (
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 340, gap: 16, background: "#fff", borderRadius: 16, border: "2px dashed #E2E8F0", padding: 40 }}>
-            <div style={{ fontSize: 52 }}>📅</div>
-            <p style={{ fontSize: 18, fontWeight: 800, color: "#0F172A" }}>Quarterly Task Manager</p>
-            <p style={{ fontSize: 13, color: "#94A3B8", textAlign: "center", maxWidth: 340, lineHeight: 1.6 }}>Reserved for quarterly planning tasks.<br />Will be set up when you're ready.</p>
-            <span style={{ fontSize: 11, fontWeight: 700, color: "#7C3AED", background: "#EDE9FE", padding: "4px 14px", borderRadius: 20 }}>Coming Soon</span>
+        <div>
+            <div style={{ background: "linear-gradient(135deg, #2563EB 0%, #1E40AF 100%)", borderRadius: 16, padding: "20px 24px", marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                    <p style={{ fontSize: 11, fontWeight: 800, color: "#93C5FD", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 4 }}>Quarterly Planning</p>
+                    <p style={{ fontSize: 20, fontWeight: 900, color: "#fff", letterSpacing: "-0.5px" }}>FY 2027 — Quarterly Tasks</p>
+                    <p style={{ fontSize: 12, color: "#93C5FD", marginTop: 4 }}>Track and manage quarterly deliverables · {tasks.length} tasks total</p>
+                </div>
+                <div style={{ fontSize: 36 }}>📅</div>
+            </div>
+            <StatsRow tasks={tasks} accent="#2563EB" isStrategic={true} />
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 18, alignItems: "center" }}>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {["All", ...QUARTERLY_STATUSES].map(s => { const cfg = STATUS_CONFIG[s] || {}; const a = filterStatus === s; return <button key={s} onClick={() => setFilterStatus(s)} style={{ padding: "5px 13px", borderRadius: 20, border: `1.5px solid ${a ? (cfg.dot || "#2563EB") : "#E2E8F0"}`, background: a ? (cfg.bg || "#DBEAFE") : "#fff", color: a ? (cfg.color || "#2563EB") : "#64748B", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>{s}</button>; })}
+                </div>
+                <div style={{ marginLeft: "auto" }}><AddTaskButton onClick={() => setAdding(true)} accent="#2563EB" label="Add Quarterly Task" /></div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
+                {QUARTERLY_QUARTERS.map(q => {
+                    const qtasks = q === "Q1 FY27" ? q1 : q === "Q2 FY27" ? q2 : q === "Q3 FY27" ? q3 : q4;
+                    return <QuarterColumn key={q} label={q} qtasks={qtasks} qcolor={Q_COLORS[q]} />;
+                })}
+            </div>
+            {adding && <AddTaskModal mode="quarterly" onClose={() => setAdding(false)} onAdd={t => { addTask({ ...t, isStrategic: true, taskType: "quarterly" }); setTasks(p => [...p, t]); }} />}
+            {selected && <EditModal task={selected} mode="quarterly" onClose={() => setSelected(null)} onSave={u => { updateTask(u); setTasks(p => p.map(t => t.id === u.id ? u : t)); }} onDelete={id => { deleteTask(id); setTasks(p => p.filter(t => t.id !== id)); setSelected(null); }} />}
         </div>
     );
 }
@@ -422,45 +523,15 @@ const TABS = [
     { id: "quarterly", label: "Quarterly", icon: "📅", accent: "#2563EB" },
 ];
 
-// Fallback seed data (used before MongoDB API loads)
-const SEED_DAILY_TASKS = [
-    { id: 1, title: "First Bank – Change PIN API (504 Gateway Timeout)", category: "UAT Issue", status: "Done", owner: "Kayode", priority: "High", notes: "FBN getting 504 Gateway Timeout on Change PIN API on UAT. Kayode handled it.", subtasks: [] },
-    { id: 2, title: "Kuda Bank – Separation of Virtual & Physical Card Programs", category: "Card Program", status: "Done", owner: "Hafeez", priority: "Medium", notes: "Separate Kuda's virtual and physical card programs so each has a dedicated card programme and BIN.", subtasks: [] },
-    { id: 3, title: "UBA Onboarding – JWT Security & Docker Workaround", category: "Onboarding", status: "Ongoing", owner: "Hafeez / Engineering", priority: "High", notes: "Bank requires additional security — specifically JWT. Workaround: containerise the Virtual Card middleware using Docker and deploy within UBA's environment.", subtasks: [] },
-    { id: 4, title: "Keystone Bank – AES GCM Encryption on UAT", category: "Onboarding", status: "Done", owner: "EFT Team", priority: "High", notes: "New build had errors on UAT. EFT used the AES GCM tool to encrypt/decrypt the password. Resolved.", subtasks: [] },
-    { id: 5, title: "Password Bulk Error – Log Chunking Strategy", category: "Engineering", status: "Done", owner: "EFT Team", priority: "Medium", notes: "Chunking strategy to split large log files. Tested by EFT and deployed.", subtasks: [] },
-    { id: 6, title: "Union Bank – UAT Issues Resolved / FAQ Doc", category: "UAT Issue", status: "Done", owner: "Samuel / Hafeez", priority: "High", notes: "UAT asks addressed. Learnings to be documented as FAQ.", subtasks: [] },
-    { id: 7, title: "Globus Bank – FCI CMS API Onboarding", category: "Onboarding", status: "Ongoing", owner: "Hafeez", priority: "Low", notes: "Onboarding going smoothly. Monitor and support as needed.", subtasks: [] },
-    { id: 8, title: "API Marketplace – List Virtual Card API Endpoints", category: "Engineering", status: "Ongoing", owner: "Hafeez", priority: "Medium", notes: "Define and document all Virtual Card API endpoints for the API Marketplace.", subtasks: [] },
-    { id: 9, title: "Virtual Card Transaction Volume – DB Data Pull", category: "Engineering", status: "Waiting", owner: "Hafeez / Anthony Hungbo", priority: "High", notes: "Speak with Anthony Hungbo to spool transaction volume data from DB per virtual card customer.", subtasks: [] },
-    { id: 10, title: "UBA Virtual Card – HSM Prod Issue", category: "UAT Issue", status: "Done", owner: "Hafeez / Mikalum", priority: "High", notes: "HSM was working on Test but not Prod. Logged on Jira. Resolved.", subtasks: [] },
-    { id: 11, title: "Parallex Bank – BIN Lock Down on PostCard", category: "Onboarding", status: "Ongoing", owner: "Hafeez / Segun", priority: "Medium", notes: "Session required on BIN lock down configuration on PostCard.", subtasks: [] },
-    { id: 12, title: "VCM Periodic Audit File / Revenue Assurance", category: "Engineering", status: "Ongoing", owner: "Hafeez / EFT", priority: "High", notes: "Track card issuance data from on-premise bank deployments via proprietary file for reconciliation and billing.", subtasks: [] },
-    { id: 13, title: "First Bank – Deploy Bulk Error Log Fix", category: "Engineering", status: "Ongoing", owner: "Hafeez / EFT", priority: "High", notes: "First Bank ready for deployment of the bulk error log fix.", subtasks: [] },
-    { id: 14, title: "Kuda Bank – BIN Separation Response & Config", category: "Card Program", status: "Ongoing", owner: "Hafeez", priority: "Medium", notes: "Kuda responded on BIN separation. Separate BIN range/card programme for Virtual Card going forward.", subtasks: [] },
-    { id: 15, title: "Dispute Management as a Service – Designer Engagement", category: "Other", status: "Ongoing", owner: "Hafeez", priority: "Medium", notes: "Reach out to Atinu Odenuga to assign a designer for DMaaS.", subtasks: [] },
-    { id: 16, title: "Purepay Product Catalogue – Input All Products", category: "Other", status: "Ongoing", owner: "Hafeez", priority: "Medium", notes: "Input all Purepay products into the Product Catalogue Sheet.", subtasks: [] },
-    { id: 17, title: "BSC – Set Up KPIs and Goals for FY", category: "Other", status: "Ongoing", owner: "Hafeez", priority: "High", notes: "Set up Balanced Scorecard KPIs and goals for the financial year.", subtasks: [] },
-    { id: 18, title: "VCM SRE Issues (Ibrahim) – Scope for PI Backlog", category: "Engineering", status: "Ongoing", owner: "Hafeez", priority: "High", notes: "Virtual Card Middleware issues from SRE. Must be scoped for PI planning.", subtasks: [] },
-    { id: 19, title: "Palmpay – PIN Change API Down", category: "UAT Issue", status: "Ongoing", owner: "Hafeez", priority: "High", notes: "Palmpay reporting PIN Change API is down. Requesting details to investigate.", subtasks: [] },
-    { id: 20, title: "First Bank – Clarify Endpoint with Samuel", category: "UAT Issue", status: "Ongoing", owner: "Hafeez", priority: "Medium", notes: "Follow up with Samuel to clarify the specific endpoint.", subtasks: [] },
-];
-
-const SEED_FY27_TASKS = [
-    { id: 101, title: "Virtual Card Security Architecture Overhaul", category: "Security", status: "Planned", owner: "Hafeez / Sam", priority: "High", quarter: "Q1 FY27", notes: "Define and implement robust security architecture. Scope covers encryption, token security, API auth, PCI-DSS and CBN compliance.", subtasks: [] },
-    { id: 102, title: "Unified Build – Consolidate Virtual Card Middleware Versions", category: "Engineering", status: "Planned", owner: "Hafeez / EFT", priority: "High", quarter: "Q2 FY27", notes: "Reduce multiple coexisting builds into a single, versioned build.", subtasks: [] },
-    { id: 103, title: "Mastercard GCO Reporting Dashboard", category: "Reporting", status: "Planned", owner: "Hafeez", priority: "Medium", quarter: "Q2 FY27", notes: "Reporting dashboard for Mastercard Global Clearing Operations requirements.", subtasks: [] },
-    { id: 104, title: "Virtual-to-Physical Card Upgrade", category: "Product Expansion", status: "Planned", owner: "Hafeez", priority: "High", quarter: "Q2 FY27", notes: "Virtual-first issuance model — instant virtual cards that materialise as physical instruments.", subtasks: [] },
-    { id: 105, title: "Dynamic CVV for Enhanced Security", category: "Security", status: "Planned", owner: "Hafeez", priority: "High", quarter: "Q3 FY27", notes: "Dynamic CVV makes card details time-bound. Opt-in feature, reduces fraud exposure.", subtasks: [] },
-    { id: 106, title: "Product Website Landing Page", category: "Go-to-Market", status: "Planned", owner: "Hafeez", priority: "Medium", quarter: "Q1 FY27", notes: "Dedicated landing page for card issuance and management platform.", subtasks: [] },
-    { id: 107, title: "Virtual Card Tokenization", category: "Security", status: "Planned", owner: "Hafeez", priority: "High", quarter: "Q3 FY27", notes: "Tokenize virtual card credentials replacing static PANs with network tokens (VTS/MDES).", subtasks: [] },
-    { id: 108, title: "Virtual Card Reporting Dashboard (ASPFEP Customers)", category: "Reporting", status: "Ongoing", owner: "Hafeez / Data Team", priority: "Medium", quarter: "Q1 FY27", notes: "Power BI dashboard tracking virtual cards issued by Multitenancy (ASPFEP) customers.", subtasks: [] },
-];
+const SEED_DAILY_TASKS = [];
+const SEED_FY27_TASKS = [];
+const SEED_QUARTERLY_TASKS = [];
 
 export default function Home() {
     const [activeTab, setActiveTab] = useState("daily");
     const [dailyTasks, setDailyTasks] = useState(SEED_DAILY_TASKS);
     const [fy27Tasks, setFY27Tasks] = useState(SEED_FY27_TASKS);
+    const [quarterlyTasks, setQuarterlyTasks] = useState(SEED_QUARTERLY_TASKS);
     const [loading, setLoading] = useState(true);
     const currentTab = TABS.find(t => t.id === activeTab);
 
@@ -470,17 +541,15 @@ export default function Home() {
                 const response = await fetch("/api/tasks");
                 if (response.ok) {
                     const data = await response.json();
+                    const mapTask = (t) => ({ ...t, id: t._id ? t._id.toString() : t.id });
+
                     const dTasks = data.dailyTasks || [];
                     const fTasks = data.fy27Tasks || [];
-
-                    // Map MongoDB _id to client id
-                    const mapTask = (t) => ({
-                        ...t,
-                        id: t._id ? t._id.toString() : t.id
-                    });
+                    const qTasks = data.quarterlyTasks || [];
 
                     if (dTasks.length > 0) setDailyTasks(dTasks.map(mapTask));
                     if (fTasks.length > 0) setFY27Tasks(fTasks.map(mapTask));
+                    if (qTasks.length > 0) setQuarterlyTasks(qTasks.map(mapTask));
                 }
             } catch (error) {
                 console.error("Failed to load tasks from API:", error);
@@ -563,12 +632,12 @@ export default function Home() {
                     <p style={{ fontSize: 12, color: "#94A3B8", marginTop: 2, marginLeft: 30 }}>
                         {activeTab === "daily" && "Click a card to edit · Use '+ Add Task' to create new"}
                         {activeTab === "fy27" && "Click a card to edit · Use '+ Add Initiative' to create new"}
-                        {activeTab === "quarterly" && "Coming soon"}
+                        {activeTab === "quarterly" && "Click a card to edit · Use '+ Add Quarterly Task' to create new"}
                     </p>
                 </div>
                 {activeTab === "daily" && <DailyTab tasks={dailyTasks} setTasks={setDailyTasks} addTask={addTask} updateTask={updateTask} deleteTask={deleteTask} />}
                 {activeTab === "fy27" && <FY27Tab tasks={fy27Tasks} setTasks={setFY27Tasks} addTask={addTask} updateTask={updateTask} deleteTask={deleteTask} />}
-                {activeTab === "quarterly" && <QuarterlyTab />}
+                {activeTab === "quarterly" && <QuarterlyTab tasks={quarterlyTasks} setTasks={setQuarterlyTasks} addTask={addTask} updateTask={updateTask} deleteTask={deleteTask} />}
             </div>
         </div>
     );

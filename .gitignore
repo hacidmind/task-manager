@@ -22,6 +22,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# seed script (contains credentials)
+scripts/seed.js
+
 # local env files
 .env.local
 .env.development.local

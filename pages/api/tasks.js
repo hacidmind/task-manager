@@ -9,13 +9,14 @@ export default async function handler(req, res) {
 
         if (req.method === "GET") {
             const tasks = await tasksCollection.find({}).toArray();
-            const dailyTasks = tasks.filter(t => !t.isStrategic);
-            const fy27Tasks = tasks.filter(t => t.isStrategic);
-            return res.status(200).json({ dailyTasks, fy27Tasks });
+            const dailyTasks = tasks.filter(t => !t.isStrategic && t.taskType !== "quarterly");
+            const fy27Tasks = tasks.filter(t => t.isStrategic && t.taskType !== "quarterly");
+            const quarterlyTasks = tasks.filter(t => t.taskType === "quarterly");
+            return res.status(200).json({ dailyTasks, fy27Tasks, quarterlyTasks });
         }
 
         if (req.method === "POST") {
-            const { id, _id, title, category, status, owner, priority, notes, subtasks, isStrategic, quarter } = req.body;
+            const { id, _id, title, category, status, owner, priority, notes, subtasks, isStrategic, quarter, taskType } = req.body;
 
             const doc = {
                 title,
@@ -27,6 +28,7 @@ export default async function handler(req, res) {
                 subtasks: subtasks || [],
                 isStrategic: isStrategic || false,
                 quarter: quarter || null,
+                taskType: taskType || null,
                 createdAt: new Date(),
                 updatedAt: new Date(),
             };
@@ -36,7 +38,7 @@ export default async function handler(req, res) {
         }
 
         if (req.method === "PUT") {
-            const { id, _id: bodyId, title, category, status, owner, priority, notes, subtasks, quarter } = req.body;
+            const { id, _id: bodyId, title, category, status, owner, priority, notes, subtasks, quarter, taskType } = req.body;
             const taskId = id || bodyId;
 
             if (!taskId) {
@@ -62,6 +64,7 @@ export default async function handler(req, res) {
                         notes,
                         subtasks: subtasks || [],
                         quarter: quarter || null,
+                        taskType: taskType || null,
                         updatedAt: new Date(),
                     },
                 }
