@@ -1,0 +1,25 @@
+{
+    "compilerOptions": {
+        "baseUrl": ".",
+        "paths": {
+            "@/*": "./*",
+            "@/components/*": [
+                "./components/*"
+            ],
+            "@/pages/*": [
+                "./pages/*"
+            ],
+            "@/lib/*": [
+                "./lib/*"
+            ],
+            "@/styles/*": [
+                "./styles/*"
+            ]
+        }
+    },
+    "include": [
+        "next-env.d.ts",
+        "**/*.ts",
+        "**/*.tsx"
+    ]
+}
