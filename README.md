@@ -27,6 +27,9 @@ Create `.env.local` using `.env.example`. Set `MONGODB_URI` to your online Mongo
 - Live task counts and completion rate
 - Responsive layouts, keyboard-accessible modal, and reduced-motion support
 - GSAP entrance/modal transitions and Anime.js task transitions
+- Light/dark themes with a remembered preference (only the theme uses a cookie; task data stays in MongoDB)
+- Email/password registration, login, and sign-out
+- Private tasks per account, salted scrypt password hashes, and revocable seven-day server sessions
 
 ## Commands
 
@@ -43,4 +46,30 @@ Create `.env.local` using `.env.example`. Set `MONGODB_URI` to your online Mongo
 - `lib/mongodb.js`: database connection
 - `task_manager_v2.jsx`, `task_export.md`: retained reference material
 
-The API supports GET, POST, PUT, and DELETE at `/api/tasks`. MongoDB updates and deletes use the task ID returned by creation. This is a personal workspace; authentication is not included.
+The API supports GET, POST, PUT, and DELETE at `/api/tasks` and requires a signed-in account. MongoDB updates and deletes use the task ID returned by creation and check account ownership.
+
+## Accounts
+
+Email OTP is inactive. Sign in with email and password at /login. Resend credentials are not needed. The OTP helpers are retained for future use, but both OTP API endpoints reject requests and cannot send emails or create sessions.
+
+### Set the default account password
+
+The default workspace account is **abiolahafeez@gmail.com**. In your own terminal, run:
+
+```sh
+npm run account:setup
+```
+
+Enter a new password of 12?128 characters and confirm it. Input is hidden. This stores a salted password hash in online MongoDB, reserves the default account, signs out existing sessions, and links tasks whose userId is missing, null, or empty. Tasks already assigned to another account are not changed. The default account cannot be claimed through public registration.
+
+Run the same command later to change or reset this password. No initial password is hardcoded or stored in .env.local. This is an application password, separate from your Gmail and MongoDB passwords.
+
+A working MONGODB_URI in .env.local is required. If MongoDB reports authentication failed, correct the database credentials first. The database user needs read/write and index creation permissions for users, sessions, authAttempts, and tasks.
+
+Other users can choose Create account and register with a name, email address, and password. Their tasks remain separate. Sessions last seven days and use HttpOnly cookies; production requires HTTPS. Sign-out revokes the session. Login attempts are rate-limited in MongoDB.
+
+### Validation
+
+- `node tests/auth-unit.cjs`: password hashing and authentication helpers.
+- `node tests/otp-unit.cjs`: retained OTP helper tests and default-account task ownership checks; no email is sent.
+- `node tests/auth-integration.cjs`: accounts, sessions, and task isolation against the dev server (default http://localhost:3001; override with TEST_BASE_URL). Creates temporary accounts and removes their users, tasks, and sessions afterward. Requires a working online MongoDB connection.

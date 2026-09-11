@@ -1,7 +1,13 @@
 import { connectToDatabase, getDatabase } from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
+import { getUser, sameOrigin } from "@/lib/auth";
 
 export default async function handler(req, res) {
+  res.setHeader("Cache-Control", "no-store");
+  if (req.method !== "GET" && !sameOrigin(req)) return res.status(403).json({ error: "Invalid request origin" });
+  let user;
+  try { user = await getUser(req); } catch { return res.status(503).json({ error: "Unable to verify your session. Please try again." }); }
+  if (!user) return res.status(401).json({ error: "Please sign in to access your tasks." });
   if (!["GET", "POST", "PUT", "DELETE"].includes(req.method)) {
     res.setHeader("Allow", "GET, POST, PUT, DELETE");
     return res.status(405).json({ error: "Method not allowed" });
@@ -26,7 +32,7 @@ export default async function handler(req, res) {
     const tasksCollection = db.collection("tasks");
 
     if (req.method === "GET") {
-      const tasks = await tasksCollection.find({}).toArray();
+      const tasks = await tasksCollection.find({ userId: user.id }).toArray();
       const dailyTasks = tasks.filter(
         (t) => !t.isStrategic && t.taskType !== "quarterly",
       );
@@ -54,6 +60,7 @@ export default async function handler(req, res) {
       } = req.body;
 
       const doc = {
+        userId: user.id,
         title,
         category,
         status,
@@ -99,7 +106,7 @@ export default async function handler(req, res) {
 
       let filter;
       try {
-        filter = { _id: new ObjectId(taskId) };
+        filter = { _id: new ObjectId(taskId), userId: user.id };
       } catch {
         return res.status(400).json({ error: "Invalid task id format" });
       }
@@ -136,7 +143,7 @@ export default async function handler(req, res) {
 
       let filter;
       try {
-        filter = { _id: new ObjectId(taskId) };
+        filter = { _id: new ObjectId(taskId), userId: user.id };
       } catch {
         return res.status(400).json({ error: "Invalid task id format" });
       }

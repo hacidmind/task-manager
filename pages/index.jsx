@@ -1,6 +1,8 @@
 ﻿import Head from "next/head";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import ThemeToggle from "@/components/ThemeToggle";
+import { useRouter } from "next/router";
 import { gsap } from "gsap";
 import { animate, stagger } from "animejs";
 import {
@@ -21,6 +23,7 @@ import {
   Target,
   Circle,
   SlidersHorizontal,
+  LogOut,
 } from "lucide-react";
 const VIEWS = [
   {
@@ -322,7 +325,8 @@ function Editor({ task, view, onClose, onSave }) {
   );
 }
 
-export default function Home() {
+export default function Home({ user }) {
+  const router = useRouter();
   const root = useRef(null);
   const [view, setView] = useState("daily");
   const [tasks, setTasks] = useState([]);
@@ -350,6 +354,7 @@ export default function Home() {
     (async () => {
       try {
         const r = await fetch("/api/tasks", { signal: controller.signal });
+        if (r.status === 401) { window.location.replace("/login"); return; }
         const d = await r.json();
         if (!r.ok)
           throw new Error(
@@ -424,6 +429,7 @@ export default function Home() {
         body: JSON.stringify(saved),
       });
       const d = await r.json();
+      if (r.status === 401) { window.location.replace("/login"); throw new Error("Your session has expired. Please sign in again."); }
       if (!r.ok)
         throw new Error(d.error || "Could not save. Please try again.");
       if (!exists) saved.id = d.id;
@@ -576,9 +582,9 @@ export default function Home() {
             <ArrowUpRight size={15} />
           </button>
           <div className="profile">
-            <span className="avatar">H</span>
+            <span className="avatar">{user.name.slice(0, 1).toUpperCase()}</span>
             <div>
-              <strong>Hafeez</strong>
+              <strong>{user.name}</strong>
               <small>Personal workspace</small>
             </div>
             <span className="online-dot" />
@@ -592,6 +598,7 @@ export default function Home() {
             <ChevronRight size={13} />
             <strong>{current.label}</strong>
           </div>
+          <div className="topbar-actions">
           <span className="storage-state">
             <span />
             {storage === "mongodb"
@@ -600,6 +607,15 @@ export default function Home() {
                   ? "Connection unavailable"
                   : "Connecting…"}
           </span>
+          <ThemeToggle />
+          <button className="theme-toggle" aria-label="Sign out" title="Sign out" onClick={async () => {
+            try {
+              const response = await fetch("/api/auth/logout", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+              if (!response.ok) throw new Error("Unable to sign out. Please try again.");
+              await router.replace("/login");
+            } catch (e) { setError(e.message); }
+          }}><LogOut size={17}/></button>
+          </div>
         </header>
         <main>
           <section className="page-heading reveal">
@@ -893,4 +909,14 @@ export default function Home() {
       )}
     </div>
   );
+}
+
+export async function getServerSideProps({ req, res }) {
+  res.setHeader("Cache-Control", "no-store");
+  const { getUser } = await import("@/lib/auth");
+  try {
+    const user = await getUser(req);
+    if (user) return { props: { user } };
+  } catch { /* An unavailable database must never expose protected content. */ }
+  return { redirect: { destination: "/login", permanent: false } };
 }

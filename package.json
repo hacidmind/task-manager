@@ -6,7 +6,8 @@
         "dev": "next dev",
         "build": "next build",
         "start": "next start",
-        "lint": "next lint"
+        "lint": "next lint",
+        "account:setup": "node scripts/setup-default-account.cjs"
     },
     "dependencies": {
         "animejs": "^4.5.0",
