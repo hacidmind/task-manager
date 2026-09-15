@@ -8,8 +8,8 @@ export default async function handler(req, res) {
   let user;
   try { user = await getUser(req); } catch { return res.status(503).json({ error: "Unable to verify your session. Please try again." }); }
   if (!user) return res.status(401).json({ error: "Please sign in to access your tasks." });
-  if (!["GET", "POST", "PUT", "DELETE"].includes(req.method)) {
-    res.setHeader("Allow", "GET, POST, PUT, DELETE");
+  if (!["GET", "POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
+    res.setHeader("Allow", "GET, POST, PUT, PATCH, DELETE");
     return res.status(405).json({ error: "Method not allowed" });
   }
   if (["POST", "PUT"].includes(req.method)) {
@@ -30,6 +30,20 @@ export default async function handler(req, res) {
     await connectToDatabase();
     const db = await getDatabase();
     const tasksCollection = db.collection("tasks");
+
+    if (req.method === "PATCH") {
+      const { id, focusDate } = req.body || {};
+      if (focusDate !== null && (typeof focusDate !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(focusDate) || !Number.isFinite(Date.parse(focusDate)) || new Date(focusDate).toISOString().slice(0, 10) !== focusDate)) {
+        return res.status(400).json({ error: "A valid focus date is required" });
+      }
+      if (typeof id !== "string" || !ObjectId.isValid(id)) return res.status(400).json({ error: "Invalid task id" });
+      const result = await tasksCollection.updateOne(
+        { _id: new ObjectId(id), userId: user.id },
+        { $set: { focusDate, updatedAt: new Date() } },
+      );
+      if (!result.matchedCount) return res.status(404).json({ error: "Task not found" });
+      return res.status(200).json({ focusDate });
+    }
 
     if (req.method === "GET") {
       const tasks = await tasksCollection.find({ userId: user.id }).toArray();

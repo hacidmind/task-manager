@@ -67,6 +67,12 @@ const CATEGORIES = [
 ];
 const viewOf = (t) =>
   t.taskType === "quarterly" ? "quarterly" : t.isStrategic ? "fy27" : "daily";
+const localDay = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+};
+const completion = (task) => task.status === "Done" ? 100 : task.subtasks?.length
+  ? Math.round(task.subtasks.filter((item) => item.done).length / task.subtasks.length * 100) : 0;
 const slug = (s) => (s || "").toLowerCase().replaceAll(" ", "-");
 const blankTask = (view) => ({
   title: "",
@@ -338,6 +344,17 @@ export default function Home({ user }) {
   const [layout, setLayout] = useState("board");
   const [editor, setEditor] = useState(null);
   const [toast, setToast] = useState("");
+  const [today, setToday] = useState("");
+  const [focusBusy, setFocusBusy] = useState(false);
+  const [focusQuery, setFocusQuery] = useState("");
+  const [choosingFocus, setChoosingFocus] = useState(true);
+  useEffect(() => {
+    const refresh = () => setToday(localDay());
+    refresh();
+    const timer = setInterval(refresh, 30000);
+    window.addEventListener("focus", refresh);
+    return () => { clearInterval(timer); window.removeEventListener("focus", refresh); };
+  }, []);
   const [help, setHelp] = useState(false);
   const [date, setDate] = useState("Your workspace, at a glance");
   const current = VIEWS.find((v) => v.id === view);
@@ -449,27 +466,39 @@ export default function Home({ user }) {
           : "Task created. Let’s make progress.",
     );
   }
+  async function toggleFocus(task) {
+    setFocusBusy(true);
+    setError("");
+    const focusDate = task.focusDate === localDay() ? null : localDay();
+    try {
+      const response = await fetch("/api/tasks", {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: task.id, focusDate }),
+      });
+      if (response.status === 401) { window.location.replace("/login"); return; }
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Could not update today's focus.");
+      setTasks((items) => items.map((item) => item.id === task.id ? { ...item, focusDate } : item));
+      setToast(focusDate ? "Added to today’s focus" : "Removed from today’s focus");
+    } catch (e) { setError(e.message); }
+    finally { setFocusBusy(false); }
+  }
+  const focused = tasks.filter((task) => today && task.focusDate === today);
+  const focusOptions = tasks.filter((task) => task.status !== "Done" && task.focusDate !== today &&
+    `${task.title} ${task.owner}`.toLowerCase().includes(focusQuery.toLowerCase()));
   const done = scoped.filter((t) => t.status === "Done").length;
   const progress = scoped.filter((t) =>
-    ["Ongoing", "Waiting", "Blocked"].includes(t.status),
+    t.status === "Ongoing",
   ).length;
   const percent = scoped.length ? Math.round((done / scoped.length) * 100) : 0;
   const ready = storage === "mongodb";
   const groups =
     view === "daily"
-      ? [
-          {
-            title: "To do",
-            key: "todo",
-            test: (t) => ["Not Started", "Planned"].includes(t.status),
-          },
-          {
-            title: "In progress",
-            key: "progress",
-            test: (t) => ["Ongoing", "Waiting", "Blocked"].includes(t.status),
-          },
-          { title: "Completed", key: "done", test: (t) => t.status === "Done" },
-        ]
+      ? STATUSES.map((status) => ({
+          title: status === "Ongoing" ? "In progress" : status === "Done" ? "Completed" : status,
+          key: slug(status), status,
+          test: (task) => task.status === status,
+        }))
       : [1, 2, 3, 4].map((q) => ({
           title: `Q${q} FY27`,
           key: `q${q}`,
@@ -664,7 +693,7 @@ export default function Home({ user }) {
                 <span />
                 {date}
               </span>
-              <h2>Let’s make today count.</h2>
+              <h2>Welcome back, {user.name.split(" ")[0]}.</h2>
               <p>You bring the ideas. We’ll keep them organized.</p>
               <div className="progress-label">
                 <span>Your completion rate</span>
@@ -719,6 +748,46 @@ export default function Home({ user }) {
                 </div>
               ))}
             </div>
+          </section>
+          <section className="daily-focus reveal" aria-labelledby="focus-heading">
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">YOUR PRIORITIES FOR TODAY</p>
+                <h2 id="focus-heading">Today’s focus <span>{focused.length}</span></h2>
+                <p>Choose initiatives from daily tasks, quarterly planning, and your roadmap.</p>
+              </div>
+              <button className="secondary" disabled={!ready || !today} aria-expanded={choosingFocus}
+                onClick={() => setChoosingFocus(!choosingFocus)}>
+                <Plus size={16} /> {choosingFocus ? "Finish selecting" : "Select initiatives"}
+              </button>
+            </div>
+            <p className="focus-explanation">Progress follows completed action items. Tasks marked Done show 100%; tasks without action items start at 0%. Selections reset each day.</p>
+            {storage === "loading" ? <p role="status">Loading your priorities...</p> : !ready ? <p>Connect your workspace to load today’s priorities.</p> : (
+              <>
+                {!focused.length && <p className="focus-empty">What would make today a success? Select your first initiative to focus on.</p>}
+                <div className="focus-list">
+                  {focused.map((task) => (
+                    <article className="focus-item" key={task.id}>
+                      <div className="focus-title">
+                        <button className="text-button" onClick={() => setEditor(task)}>{task.title}</button>
+                        <button className="icon-button" disabled={focusBusy} aria-label={`Remove ${task.title} from today's focus`} onClick={() => toggleFocus(task)}><X size={16} /></button>
+                      </div>
+                      <div className="card-meta"><span>{VIEWS.find((v) => v.id === viewOf(task)).label}</span><span className={`status-badge ${slug(task.status)}`}>{task.status}</span></div>
+                      <div className="progress-label"><span>Completion</span><strong>{completion(task)}%</strong></div>
+                      <progress aria-label={`${task.title} completion`} max="100" value={completion(task)} />
+                    </article>
+                  ))}
+                </div>
+                {choosingFocus && <div className="focus-picker">
+                  <label className="search-field"><Search size={17} /><input aria-label="Search initiatives to focus on" placeholder="Find an initiative..." value={focusQuery} onChange={(e) => setFocusQuery(e.target.value)} /></label>
+                  {focusOptions.map((task) => <div className="focus-option" key={task.id}>
+                    <div><strong>{task.title}</strong><small>{VIEWS.find((v) => v.id === viewOf(task)).label} / {task.status} / {completion(task)}% complete</small></div>
+                    <button className="secondary" disabled={focusBusy} aria-label={`Focus on ${task.title} today`} onClick={() => toggleFocus(task)}>Focus today</button>
+                  </div>)}
+                  {!focusOptions.length && <p>No available initiatives. Create a task or adjust your search.</p>}
+                </div>}
+              </>
+            )}
           </section>
           <section className="tasks-section reveal">
             <div className="section-heading">
@@ -828,12 +897,7 @@ export default function Home({ user }) {
                         onClick={() =>
                           setEditor({
                             ...blankTask(view),
-                            status:
-                              g.key === "done"
-                                ? "Done"
-                                : g.key === "progress"
-                                  ? "Ongoing"
-                                  : "Not Started",
+                            status: g.status || "Planned",
                             quarter: view !== "daily" ? g.title : null,
                           })
                         }
@@ -896,7 +960,7 @@ export default function Home({ user }) {
       {editor && (
         <Editor
           task={editor}
-          view={view}
+          view={editor.id ? viewOf(editor) : view}
           onClose={() => setEditor(null)}
           onSave={save}
         />

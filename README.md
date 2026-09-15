@@ -73,3 +73,7 @@ Other users can choose Create account and register with a name, email address, a
 - `node tests/auth-unit.cjs`: password hashing and authentication helpers.
 - `node tests/otp-unit.cjs`: retained OTP helper tests and default-account task ownership checks; no email is sent.
 - `node tests/auth-integration.cjs`: accounts, sessions, and task isolation against the dev server (default http://localhost:3001; override with TEST_BASE_URL). Creates temporary accounts and removes their users, tasks, and sessions afterward. Requires a working online MongoDB connection.
+
+### Daily focus
+
+After login, select initiatives from any workspace view for today. Selections are saved per account in MongoDB for the local calendar date. Completion uses completed action items, with Done tasks at 100%. Daily board statuses are separate, and In progress counts only Ongoing tasks. Run `node tests/focus-unit.cjs` for focused API validation.
