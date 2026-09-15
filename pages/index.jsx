@@ -27,7 +27,6 @@ import {
   Circle,
   SlidersHorizontal,
   LogOut,
-  Settings,
 } from "lucide-react";
 const VIEWS = [
   {
@@ -666,7 +665,10 @@ export default function Home({ user }) {
             <strong>{current.label}</strong>
           </div>
           <div className="topbar-actions">
-          <Link href="/settings" className="theme-toggle" aria-label="Settings" title="Settings"><Settings size={17} /></Link>
+          <Link href="/settings" className="dashboard-profile" aria-label={`${user.name} profile settings`} title="Profile settings">
+            <Avatar avatar={user.avatar} name={user.name} />
+            <span>{user.name}</span>
+          </Link>
           <button className="theme-toggle mobile-help" aria-label="Getting started" title="Getting started"
             aria-expanded={help} aria-controls="getting-started" onClick={() => setHelp((open) => !open)}>
             <Circle size={17} />
