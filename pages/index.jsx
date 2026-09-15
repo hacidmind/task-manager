@@ -71,8 +71,10 @@ const localDay = () => {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 };
-const completion = (task) => task.status === "Done" ? 100 : task.subtasks?.length
-  ? Math.round(task.subtasks.filter((item) => item.done).length / task.subtasks.length * 100) : 0;
+const completion = (task) => Number.isInteger(task.manualProgress)
+  ? task.manualProgress
+  : task.status === "Done" ? 100 : task.subtasks?.length
+    ? Math.round(task.subtasks.filter((item) => item.done).length / task.subtasks.length * 100) : 0;
 const slug = (s) => (s || "").toLowerCase().replaceAll(" ", "-");
 const blankTask = (view) => ({
   title: "",
@@ -346,6 +348,7 @@ export default function Home({ user }) {
   const [toast, setToast] = useState("");
   const [today, setToday] = useState("");
   const [focusBusy, setFocusBusy] = useState(false);
+  const [progressDrafts, setProgressDrafts] = useState({});
   const [focusQuery, setFocusQuery] = useState("");
   const [choosingFocus, setChoosingFocus] = useState(true);
   useEffect(() => {
@@ -480,6 +483,35 @@ export default function Home({ user }) {
       if (!response.ok) throw new Error(result.error || "Could not update today's focus.");
       setTasks((items) => items.map((item) => item.id === task.id ? { ...item, focusDate } : item));
       setToast(focusDate ? "Added to today’s focus" : "Removed from today’s focus");
+    } catch (e) { setError(e.message); }
+    finally { setFocusBusy(false); }
+  }
+  async function saveProgress(task, value) {
+    const manualProgress = Math.max(0, Math.min(100, Number(value)));
+    const nextStatus = manualProgress === 100
+      ? "Done"
+      : task.status === "Done" ? "Ongoing" : task.status;
+    setFocusBusy(true);
+    setError("");
+    try {
+      const response = await fetch("/api/tasks", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: task.id, manualProgress }),
+      });
+      if (response.status === 401) { window.location.replace("/login"); return; }
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Could not save progress.");
+      setTasks((items) => items.map((item) => item.id === task.id
+        ? { ...item, manualProgress, status: nextStatus } : item));
+      setProgressDrafts((drafts) => {
+        const next = { ...drafts };
+        delete next[task.id];
+        return next;
+      });
+      setToast(manualProgress === 100
+        ? "Completed and moved to Completed"
+        : `Progress saved at ${manualProgress}%`);
     } catch (e) { setError(e.message); }
     finally { setFocusBusy(false); }
   }
@@ -761,7 +793,7 @@ export default function Home({ user }) {
                 <Plus size={16} /> {choosingFocus ? "Finish selecting" : "Select initiatives"}
               </button>
             </div>
-            <p className="focus-explanation">Progress follows completed action items. Tasks marked Done show 100%; tasks without action items start at 0%. Selections reset each day.</p>
+            <p className="focus-explanation">Drag each slider to record progress. Reaching 100% marks the task Done and moves it to Completed. Selections reset each day.</p>
             {storage === "loading" ? <p role="status">Loading your priorities...</p> : !ready ? <p>Connect your workspace to load today’s priorities.</p> : (
               <>
                 {!focused.length && <p className="focus-empty">What would make today a success? Select your first initiative to focus on.</p>}
@@ -773,8 +805,14 @@ export default function Home({ user }) {
                         <button className="icon-button" disabled={focusBusy} aria-label={`Remove ${task.title} from today's focus`} onClick={() => toggleFocus(task)}><X size={16} /></button>
                       </div>
                       <div className="card-meta"><span>{VIEWS.find((v) => v.id === viewOf(task)).label}</span><span className={`status-badge ${slug(task.status)}`}>{task.status}</span></div>
-                      <div className="progress-label"><span>Completion</span><strong>{completion(task)}%</strong></div>
-                      <progress aria-label={`${task.title} completion`} max="100" value={completion(task)} />
+                      <div className="progress-label"><span>Completion</span><strong>{progressDrafts[task.id] ?? completion(task)}%</strong></div>
+                      <input className="focus-slider" type="range" min="0" max="100" step="1"
+                        aria-label={`${task.title} completion percentage`}
+                        value={progressDrafts[task.id] ?? completion(task)} disabled={focusBusy}
+                        onChange={(e) => setProgressDrafts((drafts) => ({ ...drafts, [task.id]: Number(e.target.value) }))}
+                        onPointerUp={(e) => saveProgress(task, e.currentTarget.value)}
+                        onKeyUp={(e) => ["ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"].includes(e.key) && saveProgress(task, e.currentTarget.value)}
+                        onBlur={(e) => progressDrafts[task.id] != null && saveProgress(task, e.currentTarget.value)} />
                     </article>
                   ))}
                 </div>
@@ -880,7 +918,7 @@ export default function Home({ user }) {
               </div>
             ) : layout === "board" ? (
               <div
-                className={`board ${view !== "daily" ? "quarter-board" : ""}`}
+                className={`board ${view === "daily" ? "daily-board" : "quarter-board"}`}
               >
                 {groups.map((g) => (
                   <section className={`board-column ${g.key}`} key={g.key}>

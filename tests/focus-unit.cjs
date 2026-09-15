@@ -7,7 +7,15 @@ const source = fs.readFileSync('pages/api/tasks.js', 'utf8')
   .replace('import { getUser, sameOrigin } from "@/lib/auth";', 'const getUser = async () => globalThis.focusUser; const sameOrigin = () => true;');
 globalThis.focusObjectId = class ObjectId { constructor(value) { this.value = value; } static isValid(value) { return /^[a-f0-9]{24}$/i.test(value); } };
 globalThis.focusUser = { id: 'account-a' };
-globalThis.focusDb = { collection: () => ({ updateOne: async (filter, change) => { update = { filter, change }; return { matchedCount: 1 }; } }) };
+let storedStatus = 'Planned';
+globalThis.focusDb = { collection: () => ({
+  findOne: async (filter) => filter.userId === 'account-a' ? { status: storedStatus } : null,
+  updateOne: async (filter, change) => {
+    update = { filter, change };
+    if (change.$set.status) storedStatus = change.$set.status;
+    return { matchedCount: filter.userId === 'account-a' ? 1 : 0 };
+  },
+}) };
 process.env.MONGODB_URI = 'test-only';
 (async () => {
   const { default: handler } = await import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'));
@@ -23,6 +31,14 @@ process.env.MONGODB_URI = 'test-only';
   assert.deepEqual(Object.keys(update.change.$set).sort(), ['focusDate', 'updatedAt']);
   assert.equal((await request({ id, focusDate: null })).code, 200);
   assert.equal(update.change.$set.focusDate, null);
+  assert.equal((await request({ id, manualProgress: 72 })).code, 200);
+  assert.equal(update.change.$set.manualProgress, 72);
+  assert.equal(update.change.$set.status, 'Planned');
+  assert.equal((await request({ id, manualProgress: 100 })).code, 200);
+  assert.equal(update.change.$set.status, 'Done');
+  assert.equal((await request({ id, manualProgress: 40 })).code, 200);
+  assert.equal(update.change.$set.status, 'Ongoing');
+  for (const manualProgress of [-1, 101, 2.5, '50']) assert.equal((await request({ id, manualProgress })).code, 400);
   for (const focusDate of ['2026-02-30', 'bad', {}, undefined]) assert.equal((await request({ id, focusDate })).code, 400);
   assert.equal((await request({ id: 'invalid', focusDate: null })).code, 400);
   globalThis.focusUser = null;

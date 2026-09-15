@@ -1400,10 +1400,9 @@ h1 > span {
 .focus-title { display: flex; justify-content: space-between; align-items: start; gap: 12px; }
 .focus-title .text-button { text-align: left; font-size: 15px; line-height: 1.5; overflow-wrap: anywhere; }
 .focus-item .card-meta { flex-wrap: wrap; }
-.focus-item progress { width: 100%; height: 8px; border: 0; border-radius: 10px; overflow: hidden; background: #eee8f5; accent-color: #9171bc; }
-.focus-item progress::-webkit-progress-bar { background: #eee8f5; }
-.focus-item progress::-webkit-progress-value { background: #9171bc; }
-.focus-item progress::-moz-progress-bar { background: #9171bc; }
+.focus-slider { width: 100%; height: 22px; cursor: grab; accent-color: #9171bc; }
+.focus-slider:active { cursor: grabbing; }
+.focus-slider:disabled { cursor: wait; }
 .focus-picker { margin-top: 20px; max-height: 420px; overflow: auto; }
 .focus-option { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 0; border-bottom: 1px solid #e3dcf0; }
 .focus-option strong { overflow-wrap: anywhere; }
@@ -1416,6 +1415,8 @@ h1 > span {
 [data-theme="dark"] .daily-focus, [data-theme="dark"] .focus-item { background: #24202f; border-color: #3b3349; }
 [data-theme="dark"] .focus-explanation, [data-theme="dark"] .focus-empty, [data-theme="dark"] .focus-option small { color: #b8a7ca; }
 [data-theme="dark"] .focus-option { border-color: #3b3349; }
+.daily-board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(270px, 320px); grid-template-columns: none; overflow-x: auto; overscroll-behavior-inline: contain; scroll-snap-type: inline proximity; padding-bottom: 12px; }
+.daily-board .board-column { scroll-snap-align: start; }
 @media (max-width: 600px) {
   .daily-focus { padding: 16px; }
   .focus-option { align-items: start; flex-direction: column; }

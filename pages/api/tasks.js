@@ -32,17 +32,38 @@ export default async function handler(req, res) {
     const tasksCollection = db.collection("tasks");
 
     if (req.method === "PATCH") {
-      const { id, focusDate } = req.body || {};
-      if (focusDate !== null && (typeof focusDate !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(focusDate) || !Number.isFinite(Date.parse(focusDate)) || new Date(focusDate).toISOString().slice(0, 10) !== focusDate)) {
-        return res.status(400).json({ error: "A valid focus date is required" });
-      }
+      const { id } = req.body || {};
       if (typeof id !== "string" || !ObjectId.isValid(id)) return res.status(400).json({ error: "Invalid task id" });
+      const updates = { updatedAt: new Date() };
+      if (Object.prototype.hasOwnProperty.call(req.body, "focusDate")) {
+        const { focusDate } = req.body;
+        if (focusDate !== null && (typeof focusDate !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(focusDate) || !Number.isFinite(Date.parse(focusDate)) || new Date(focusDate).toISOString().slice(0, 10) !== focusDate)) {
+          return res.status(400).json({ error: "A valid focus date is required" });
+        }
+        updates.focusDate = focusDate;
+      } else if (Object.prototype.hasOwnProperty.call(req.body, "manualProgress")) {
+        const { manualProgress } = req.body;
+        if (!Number.isInteger(manualProgress) || manualProgress < 0 || manualProgress > 100) {
+          return res.status(400).json({ error: "Progress must be a whole number from 0 to 100" });
+        }
+        const existing = await tasksCollection.findOne(
+          { _id: new ObjectId(id), userId: user.id },
+          { projection: { status: 1 } },
+        );
+        if (!existing) return res.status(404).json({ error: "Task not found" });
+        updates.manualProgress = manualProgress;
+        updates.status = manualProgress === 100
+          ? "Done"
+          : existing.status === "Done" ? "Ongoing" : existing.status;
+      } else {
+        return res.status(400).json({ error: "A focus date or progress value is required" });
+      }
       const result = await tasksCollection.updateOne(
         { _id: new ObjectId(id), userId: user.id },
-        { $set: { focusDate, updatedAt: new Date() } },
+        { $set: updates },
       );
       if (!result.matchedCount) return res.status(404).json({ error: "Task not found" });
-      return res.status(200).json({ focusDate });
+      return res.status(200).json(updates);
     }
 
     if (req.method === "GET") {

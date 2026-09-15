@@ -76,4 +76,4 @@ Other users can choose Create account and register with a name, email address, a
 
 ### Daily focus
 
-After login, select initiatives from any workspace view for today. Selections are saved per account in MongoDB for the local calendar date. Completion uses completed action items, with Done tasks at 100%. Daily board statuses are separate, and In progress counts only Ongoing tasks. Run `node tests/focus-unit.cjs` for focused API validation.
+After login, select initiatives from any workspace view for today. Selections are saved per account in MongoDB for the local calendar date. Drag a focus slider from 0–100% to save manual progress; reaching 100% marks the task Done and places it in Completed. Daily board statuses are separate and stay on one horizontally scrollable row. Run `node tests/focus-unit.cjs` for focused API validation.
