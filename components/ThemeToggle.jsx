@@ -1,34 +1,27 @@
 import { useEffect, useState } from "react";
-import { Moon, Sun } from "lucide-react";
+import { Palette } from "lucide-react";
+import { THEMES } from "@/lib/preferences";
+import { applyTheme, savedTheme } from "@/lib/theme-client";
 
 export default function ThemeToggle() {
-  const [dark, setDark] = useState(false);
+  const [theme, setTheme] = useState("light");
 
   useEffect(() => {
-    const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const saved = document.cookie.match(/(?:^|; )momentum-theme=(dark|light)(?:;|$)/)?.[1];
-    const apply = (value) => {
-      setDark(value);
-      document.documentElement.dataset.theme = value ? "dark" : "light";
-    };
-    apply(saved ? saved === "dark" : media.matches);
-    const update = (event) => {
-      if (!document.cookie.match(/(?:^|; )momentum-theme=/)) apply(event.matches);
-    };
-    media.addEventListener("change", update);
-    return () => media.removeEventListener("change", update);
+    const initial = savedTheme() || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    setTheme(applyTheme(initial));
+    const update = (event) => setTheme(event.detail);
+    window.addEventListener("momentum-theme", update);
+    return () => window.removeEventListener("momentum-theme", update);
   }, []);
 
   function toggle() {
-    const next = !dark;
-    setDark(next);
-    document.documentElement.dataset.theme = next ? "dark" : "light";
-    document.cookie = `momentum-theme=${next ? "dark" : "light"}; Path=/; Max-Age=31536000; SameSite=Lax`;
+    const index = THEMES.findIndex((item) => item.key === theme);
+    setTheme(applyTheme(THEMES[(index + 1) % THEMES.length].key));
   }
 
   return (
-    <button type="button" className="theme-toggle" onClick={toggle} aria-label={dark ? "Switch to light mode" : "Switch to dark mode"} title={dark ? "Switch to light mode" : "Switch to dark mode"}>
-      {dark ? <Sun size={18} /> : <Moon size={18} />}
+    <button type="button" className="theme-toggle" onClick={toggle} aria-label={`Current theme: ${THEMES.find((item) => item.key === theme)?.label}. Switch theme`} title="Switch theme">
+      <Palette size={18} />
     </button>
   );
 }

@@ -2,6 +2,9 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
+import Avatar from "@/components/Avatar";
+import { DEFAULT_STATUSES, statusesFor } from "@/lib/preferences";
+import { applyTheme } from "@/lib/theme-client";
 import { useRouter } from "next/router";
 import { gsap } from "gsap";
 import { animate, stagger } from "animejs";
@@ -24,6 +27,7 @@ import {
   Circle,
   SlidersHorizontal,
   LogOut,
+  Settings,
 } from "lucide-react";
 const VIEWS = [
   {
@@ -44,14 +48,6 @@ const VIEWS = [
     icon: Map,
     description: "Make space for the next big thing.",
   },
-];
-const STATUSES = [
-  "Not Started",
-  "Planned",
-  "Ongoing",
-  "Waiting",
-  "Blocked",
-  "Done",
 ];
 const CATEGORIES = [
   "Engineering",
@@ -76,10 +72,11 @@ const completion = (task) => Number.isInteger(task.manualProgress)
   : task.status === "Done" ? 100 : task.subtasks?.length
     ? Math.round(task.subtasks.filter((item) => item.done).length / task.subtasks.length * 100) : 0;
 const slug = (s) => (s || "").toLowerCase().replaceAll(" ", "-");
-const blankTask = (view) => ({
+const blankTask = (view, statuses = DEFAULT_STATUSES) => ({
   title: "",
   category: "Engineering",
-  status: "Not Started",
+  status: statuses.some((item) => item.key === "Not Started")
+    ? "Not Started" : statuses.find((item) => item.key !== "Done")?.key || "Ongoing",
   priority: "Medium",
   owner: "",
   notes: "",
@@ -89,7 +86,7 @@ const blankTask = (view) => ({
   quarter: view === "daily" ? null : "Q1 FY27",
 });
 
-function Editor({ task, view, onClose, onSave }) {
+function Editor({ task, view, statuses, onClose, onSave }) {
   const [form, setForm] = useState(task);
   const [action, setAction] = useState("");
   const [busy, setBusy] = useState(false);
@@ -205,8 +202,8 @@ function Editor({ task, view, onClose, onSave }) {
               value={form.status}
               onChange={(e) => set("status", e.target.value)}
             >
-              {STATUSES.map((s) => (
-                <option key={s}>{s}</option>
+              {statuses.map((status) => (
+                <option key={status.key} value={status.key}>{status.label}</option>
               ))}
             </select>
           </label>
@@ -336,6 +333,7 @@ function Editor({ task, view, onClose, onSave }) {
 export default function Home({ user }) {
   const router = useRouter();
   const root = useRef(null);
+  const helpPanel = useRef(null);
   const [view, setView] = useState("daily");
   const [tasks, setTasks] = useState([]);
   const [storage, setStorage] = useState("loading");
@@ -361,6 +359,14 @@ export default function Home({ user }) {
   const [help, setHelp] = useState(false);
   const [date, setDate] = useState("Your workspace, at a glance");
   const current = VIEWS.find((v) => v.id === view);
+  const statusEntries = statusesFor(user);
+  const statusLabel = (key) => statusEntries.find((item) => item.key === key)?.label || key;
+  useEffect(() => { applyTheme(user.theme); }, [user.theme]);
+  useEffect(() => {
+    if (!help || !helpPanel.current) return;
+    helpPanel.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    helpPanel.current.focus({ preventScroll: true });
+  }, [help]);
   useEffect(() => {
     setDate(
       new Date().toLocaleDateString("en-GB", {
@@ -526,10 +532,10 @@ export default function Home({ user }) {
   const ready = storage === "mongodb";
   const groups =
     view === "daily"
-      ? STATUSES.map((status) => ({
-          title: status === "Ongoing" ? "In progress" : status === "Done" ? "Completed" : status,
-          key: slug(status), status,
-          test: (task) => task.status === status,
+      ? statusEntries.map((status) => ({
+          title: status.label,
+          key: slug(status.key), status: status.key,
+          test: (task) => task.status === status.key,
         }))
       : [1, 2, 3, 4].map((q) => ({
           title: `Q${q} FY27`,
@@ -560,7 +566,7 @@ export default function Home({ user }) {
       <div className="card-meta">
         <span className={`status-badge ${slug(t.status)}`}>
           <span />
-          {t.status}
+          {statusLabel(t.status)}
         </span>
         {t.subtasks?.length > 0 && (
           <span className="subtask-count">
@@ -596,9 +602,9 @@ export default function Home({ user }) {
           momentum<span>.</span>
         </Link>
         <div className="workspace">
-          <span className="workspace-icon">VC</span>
+          <span className="workspace-icon">{user.workspaceName.slice(0, 2).toUpperCase()}</span>
           <div>
-            <strong>Virtual Card</strong>
+            <strong>{user.workspaceName}</strong>
             <small>Product workspace</small>
           </div>
           <ChevronRight size={15} />
@@ -637,16 +643,16 @@ export default function Home({ user }) {
           </div>
         </div>
         <div className="sidebar-bottom">
-          <button className="help-button" onClick={() => setHelp(!help)}>
+          <button className="help-button" aria-expanded={help} aria-controls="getting-started" onClick={() => setHelp((open) => !open)}>
             <Circle size={16} />
             Getting started
             <ArrowUpRight size={15} />
           </button>
           <div className="profile">
-            <span className="avatar">{user.name.slice(0, 1).toUpperCase()}</span>
+            <Avatar avatar={user.avatar} name={user.name} />
             <div>
               <strong>{user.name}</strong>
-              <small>Personal workspace</small>
+              <small>{user.workspaceName}</small>
             </div>
             <span className="online-dot" />
           </div>
@@ -660,6 +666,11 @@ export default function Home({ user }) {
             <strong>{current.label}</strong>
           </div>
           <div className="topbar-actions">
+          <Link href="/settings" className="theme-toggle" aria-label="Settings" title="Settings"><Settings size={17} /></Link>
+          <button className="theme-toggle mobile-help" aria-label="Getting started" title="Getting started"
+            aria-expanded={help} aria-controls="getting-started" onClick={() => setHelp((open) => !open)}>
+            <Circle size={17} />
+          </button>
           <span className="storage-state">
             <span />
             {storage === "mongodb"
@@ -691,14 +702,14 @@ export default function Home({ user }) {
             <button
               className="primary"
               disabled={!ready}
-              onClick={() => setEditor(blankTask(view))}
+              onClick={() => setEditor(blankTask(view, statusEntries))}
             >
               <Plus size={18} />
               New {view === "fy27" ? "initiative" : "task"}
             </button>
           </section>
           {help && (
-            <div className="help-panel">
+            <div className="help-panel" id="getting-started" ref={helpPanel} tabIndex={-1} role="region" aria-live="polite">
               <strong>Your next step, made simple.</strong>
               <p>
                 Create a task, then open its card to update its status, add
@@ -804,7 +815,7 @@ export default function Home({ user }) {
                         <button className="text-button" onClick={() => setEditor(task)}>{task.title}</button>
                         <button className="icon-button" disabled={focusBusy} aria-label={`Remove ${task.title} from today's focus`} onClick={() => toggleFocus(task)}><X size={16} /></button>
                       </div>
-                      <div className="card-meta"><span>{VIEWS.find((v) => v.id === viewOf(task)).label}</span><span className={`status-badge ${slug(task.status)}`}>{task.status}</span></div>
+                      <div className="card-meta"><span>{VIEWS.find((v) => v.id === viewOf(task)).label}</span><span className={`status-badge ${slug(task.status)}`}>{statusLabel(task.status)}</span></div>
                       <div className="progress-label"><span>Completion</span><strong>{progressDrafts[task.id] ?? completion(task)}%</strong></div>
                       <input className="focus-slider" type="range" min="0" max="100" step="1"
                         aria-label={`${task.title} completion percentage`}
@@ -884,8 +895,8 @@ export default function Home({ user }) {
                   onChange={(e) => setStatus(e.target.value)}
                 >
                   <option value="All">All statuses</option>
-                  {STATUSES.map((s) => (
-                    <option key={s}>{s}</option>
+                  {statusEntries.map((item) => (
+                    <option key={item.key} value={item.key}>{item.label}</option>
                   ))}
                 </select>
                 <select
@@ -934,7 +945,7 @@ export default function Home({ user }) {
                         disabled={!ready}
                         onClick={() =>
                           setEditor({
-                            ...blankTask(view),
+                            ...blankTask(view, statusEntries),
                             status: g.status || "Planned",
                             quarter: view !== "daily" ? g.title : null,
                           })
@@ -999,6 +1010,7 @@ export default function Home({ user }) {
         <Editor
           task={editor}
           view={editor.id ? viewOf(editor) : view}
+          statuses={statusEntries}
           onClose={() => setEditor(null)}
           onSave={save}
         />

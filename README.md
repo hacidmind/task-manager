@@ -30,6 +30,7 @@ Create `.env.local` using `.env.example`. Set `MONGODB_URI` to your online Mongo
 - Light/dark themes with a remembered preference (only the theme uses a cookie; task data stays in MongoDB)
 - Email/password registration, login, and sign-out
 - Private tasks per account, salted scrypt password hashes, and revocable seven-day server sessions
+- Account settings for profile and workspace names, preset or uploaded avatars, custom status labels, and five colour themes
 
 ## Commands
 
